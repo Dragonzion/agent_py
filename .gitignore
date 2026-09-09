@@ -11,3 +11,6 @@ wheels/
 
 #API Keys
 .env
+
+#Cache
+.ruff_cache
