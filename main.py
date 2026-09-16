@@ -1,5 +1,4 @@
 import argparse
-import json
 import os
 
 from dotenv import load_dotenv
@@ -7,6 +6,7 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCall
 
 from call_function import available_functions
+from functions.call_function import call_function
 from prompts import system_prompt
 
 load_dotenv()
@@ -59,8 +59,11 @@ def main():
     else:
         for tool_call in message.tool_calls:
             if isinstance(tool_call, ChatCompletionMessageToolCall):
-                function_args = json.loads(tool_call.function.arguments or "{}")
-                print(f"Calling function: {tool_call.function.name}({function_args})")
+                #function_args = json.loads(tool_call.function.arguments or "{}")
+                result_message = call_function(tool_call, args.verbose)
+                if args.verbose:
+                    print(f"-> {result_message['content']}")
+                #print(f"Calling function: {tool_call.function.name}({function_args})")
 
 if __name__ == "__main__":
     main()
