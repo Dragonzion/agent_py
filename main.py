@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -29,7 +30,7 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
 
-    messages: list[ChatCompletionMessageParam]=[
+    messages: list[ChatCompletionMessageParam] =[
         {
             "role": "system",
             "content": system_prompt
@@ -41,29 +42,41 @@ def main():
         }
     ]
 
-    response = client.chat.completions.create(
-        model="openrouter/free",
-        messages = messages,
-        tools = available_functions,
-    )
-    if response.usage == None:
-        raise RuntimeError("response.usage is None")
-    if args.verbose:
-        print(f"User prompt: {args.user_prompt}")
-        print(f"Prompt tokens: {response.usage.prompt_tokens}")
-        print(f"Response tokens: {response.usage.completion_tokens}")
-    message = response.choices[0].message
 
-    if message.tool_calls == None:
-        print(message.content)
+    for _ in range(20):
+
+        response = client.chat.completions.create(
+            model="openrouter/free",
+            messages = messages,
+            tools = available_functions,
+        )
+        if response.usage == None:
+            raise RuntimeError("response.usage is None")
+        if args.verbose and _ ==0:
+            print(f"User prompt: {args.user_prompt}")
+        if args.verbose:
+            print(f"Prompt tokens: {response.usage.prompt_tokens}")
+            print(f"Response tokens: {response.usage.completion_tokens}")
+
+
+        message = response.choices[0].message
+        messages.append(message.model_dump())  # type: ignore
+
+        if message.tool_calls == None:
+            print(message.content)
+            break
+        else:
+            for tool_call in message.tool_calls:
+                if isinstance(tool_call, ChatCompletionMessageToolCall):
+                    result_message = call_function(tool_call, args.verbose)
+                    messages.append(result_message)  # type: ignore
+                    if args.verbose:
+                        print(f"-> {result_message['content']}")
     else:
-        for tool_call in message.tool_calls:
-            if isinstance(tool_call, ChatCompletionMessageToolCall):
-                #function_args = json.loads(tool_call.function.arguments or "{}")
-                result_message = call_function(tool_call, args.verbose)
-                if args.verbose:
-                    print(f"-> {result_message['content']}")
-                #print(f"Calling function: {tool_call.function.name}({function_args})")
+        print("Maximum number of messages reached")
+        sys.exit(1)
+
+
 
 if __name__ == "__main__":
     main()
